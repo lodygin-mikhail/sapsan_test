@@ -7,9 +7,8 @@ BASE_DIR = Path(__file__).parents[2]
 
 
 class Settings(BaseSettings):
-    API_SECRET: str
     BASE_URL: str
-    LLM_API: str
+    API_KEY: str
     LLM_MODEL: str
     EMBEDDING_MODEL: str
     RERANKER_MODEL: str
