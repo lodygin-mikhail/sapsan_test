@@ -13,9 +13,9 @@ class Embedder:
     def __init__(self):
         logger.info("Инициализация Embedder")
         self.client = OpenAIEmbeddings(
-            base_url=settings.BASE_URL,
+            base_url=settings.BASE_LLM_URL,
             model=settings.EMBEDDING_MODEL,
-            api_key=settings.LLM_API,
+            api_key=settings.API_KEY,
         )
 
     async def aembed_query(self, query: str):

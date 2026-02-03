@@ -54,16 +54,21 @@ class AsyncBM25Retriever(BaseRetriever):
     Асинхронная обёртка над BM25Retriever.
     """
 
-    def __init__(self, retriever: BM25Retriever):
-        self.retriever = retriever
+    def __init__(self, documents: list[Document] | None = None):
         self._lock = asyncio.Lock()
+        self._documents: list[Document] = documents or []
+        self.retriever: BM25Retriever | None = (
+            BM25Retriever.from_documents(self._documents)
+            if self._documents
+            else None
+        )
 
-        logger.info("AsyncBM25Retriever инициализирован")
+        logger.info(
+            "AsyncBM25Retriever инициализирован, документов: %d",
+            len(self._documents),
+        )
 
-    async def aretrieve(self, query: str) -> List[Document]:
-        """
-        Выполняет BM25-поиск в отдельном потоке.
-        """
+    async def aretrieve(self, query: str) -> list[Document]:
         if not self.retriever:
             logger.warning("BM25Retriever не инициализирован")
             return []
@@ -79,13 +84,9 @@ class AsyncBM25Retriever(BaseRetriever):
                 logger.exception("Ошибка BM25 retrieval")
                 raise
 
-    async def aadd_documents(self, new_docs: list[Document]):
-        """
-        Асинхронно добавляет новые документы в BM25 индекс.
-        Индекс пересоздаётся целиком.
-        """
+    async def aadd_documents(self, new_docs: list[Document]) -> None:
         if not new_docs:
-            logger.debug("BM25: нет новых документов для добавления")
+            logger.debug("BM25: нет новых документов")
             return
 
         async with self._lock:
@@ -93,17 +94,16 @@ class AsyncBM25Retriever(BaseRetriever):
                 loop = asyncio.get_running_loop()
 
                 def _update():
-                    all_docs = (
-                        (self.retriever.documents if self.retriever else [])
-                        + new_docs
+                    self._documents.extend(new_docs)
+                    self.retriever = BM25Retriever.from_documents(
+                        self._documents
                     )
-                    self.retriever = BM25Retriever.from_documents(all_docs)
 
                 await loop.run_in_executor(None, _update)
 
                 logger.info(
-                    "BM25 индекс обновлён, добавлено документов: %d",
-                    len(new_docs),
+                    "BM25 индекс обновлён, всего документов: %d",
+                    len(self._documents),
                 )
 
             except Exception:

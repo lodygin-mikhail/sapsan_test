@@ -13,7 +13,7 @@ def get_llm(model=settings.LLM_MODEL):
     """
     logger.info("Создание LLM клиента: %s", model)
     return ChatOpenAI(
-            base_url=settings.BASE_URL,
+            base_url=settings.BASE_LLM_URL,
             model=model,
             api_key=settings.API_KEY,
         )

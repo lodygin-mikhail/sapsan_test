@@ -8,139 +8,188 @@ from langchain_core.documents import Document
 
 logger = logging.getLogger(__name__)
 
+
 class DocxParser:
     """
-    Парсер DOCX файлов для RAG систем.
-
-    Разбивает документ на текстовые блоки и таблицы,
-    формируя Document объекты с метаданными.
+    Парсер DOCX-документов, ориентированный на подготовку чанков
+    для RAG-пайплайна (текст + таблицы с базовой семантикой).
     """
 
     def __init__(self, docx_path: str):
-        logger.info("Инициализация DocxParser: %s", docx_path)
-        try:
-            self.doc = DocxDocument(docx_path)
-        except Exception:
-            logger.exception("Ошибка открытия DOCX файла")
-            raise
+        # Загружаем DOCX-документ
+        self.doc = DocxDocument(docx_path)
 
+        # Текущий основной раздел документа (например: "1. ПРЕДМЕТ ДОГОВОРА")
         self.current_section = None
+
+        # Регулярные выражения для удаления повторяющегося служебного текста
+        # (артефакты экспорта, водяные знаки и т.п.)
+        self.garbage_patterns = [
+            r'\*\*ОГРАЖДАЮЩАЯ АКТУАЛЯЦИЯ\*\*',
+            r'ОГРАЖДАЮЩАЯ АКТУАЛЯЦИЯ',
+            r'\*\*ОГРАЖДАЮЩАЯ АКТУ\b',
+        ]
 
     def parse(self) -> List[Document]:
         """
-        Парсит DOCX документ и возвращает список Document объектов.
+        Основная точка входа.
+
+        Проходит по документу, нормализует текст,
+        выделяет таблицы и смысловые блоки и
+        возвращает список Document-объектов.
         """
-        logger.info("Начало парсинга DOCX документа")
         documents = []
 
-        try:
-            full_text = ""
-            for para in self.doc.paragraphs:
-                full_text += para.text + "\n"
+        # Собираем весь текст документа в одну строку
+        # (python-docx хранит текст по абзацам)
+        full_text = ""
+        for para in self.doc.paragraphs:
+            full_text += para.text + "\n"
 
-            full_text = full_text.replace("\\n", "\n")
-            lines = full_text.split("\n")
+        # Нормализуем экранированные переводы строк
+        full_text = full_text.replace('\\n', '\n')
 
-            current_content = []
-            idx = 0
+        # Удаляем повторяющийся служебный / шумовой текст
+        full_text = self._remove_garbage(full_text)
 
-            while idx < len(lines):
-                line = lines[idx].strip()
+        # Разбиваем документ на строки для построчного анализа
+        lines = full_text.split('\n')
 
-                if not line:
-                    idx += 1
-                    continue
+        # Буфер для накопления обычного текстового контента
+        current_content = []
+        idx = 0
 
-                if self._is_table_start(lines, idx):
-                    if current_content:
-                        documents.append(
-                            self._create_document(
-                                text="\n".join(current_content),
-                                chunk_type="paragraph",
-                            )
-                        )
-                        current_content = []
+        while idx < len(lines):
+            line = lines[idx].strip()
 
-                    table_md, new_idx = self._extract_table(lines, idx)
-                    documents.append(
-                        self._create_document(
-                            text=table_md,
-                            chunk_type="table",
-                            is_atomic=True,
-                        )
-                    )
-                    idx = new_idx
-                    continue
-
-                if self._is_main_section(line):
-                    if current_content:
-                        documents.append(
-                            self._create_document(
-                                text="\n".join(current_content),
-                                chunk_type="paragraph",
-                            )
-                        )
-                        current_content = []
-
-                    self.current_section = line
-                    logger.debug("Новая секция: %s", line)
-
-                current_content.append(line)
+            # Пропускаем пустые строки
+            if not line:
                 idx += 1
+                continue
 
-            if current_content:
-                documents.append(
-                    self._create_document(
-                        text="\n".join(current_content),
-                        chunk_type="paragraph",
-                    )
-                )
+            # Проверяем, начинается ли markdown-таблица
+            if self._is_table_start(lines, idx):
+                # Перед таблицей сохраняем накопленный текст как отдельный чанк
+                if current_content:
+                    text = '\n'.join(current_content)
+                    documents.append(self._create_document(
+                        text=text,
+                        chunk_type="paragraph"
+                    ))
+                    current_content = []
 
-            logger.info("Парсинг завершён, документов: %d", len(documents))
-            return documents
+                # Извлекаем таблицу целиком
+                table_md, new_idx = self._extract_table(lines, idx)
+                documents.append(self._create_document(
+                    text=table_md,
+                    chunk_type="table",
+                    is_atomic=True
+                ))
+                idx = new_idx
+                continue
 
-        except Exception:
-            logger.exception("Ошибка при парсинге DOCX документа")
-            raise
+            # Проверяем, является ли строка заголовком основного раздела
+            # (например: "1. ...", но не "1.1" или "2.3.4")
+            if self._is_main_section(line):
+                # Сохраняем предыдущий текстовый блок
+                if current_content:
+                    text = '\n'.join(current_content)
+                    documents.append(self._create_document(
+                        text=text,
+                        chunk_type="paragraph"
+                    ))
+                    current_content = []
+
+                # Обновляем текущий раздел
+                self.current_section = line
+
+            # Добавляем строку в текущий текстовый блок
+            current_content.append(line)
+            idx += 1
+
+        # Сохраняем оставшийся контент после завершения прохода
+        if current_content:
+            text = '\n'.join(current_content)
+            documents.append(self._create_document(
+                text=text,
+                chunk_type="paragraph"
+            ))
+
+        return documents
+
+    def _remove_garbage(self, text: str) -> str:
+        """
+        Удаляет повторяющийся служебный текст и
+        нормализует количество пустых строк.
+        """
+        cleaned_text = text
+
+        for pattern in self.garbage_patterns:
+            cleaned_text = re.sub(pattern, '', cleaned_text, flags=re.IGNORECASE)
+
+        # Схлопываем избыточные переводы строк
+        cleaned_text = re.sub(r'\n{3,}', '\n\n', cleaned_text)
+
+        return cleaned_text
 
     def _is_main_section(self, line: str) -> bool:
-        """Определяет главный заголовок раздела"""
+        """
+        Определяет, является ли строка заголовком основного раздела.
+
+        Поддерживаемые примеры:
+          - "1. ПРЕДМЕТ ДОГОВОРА"
+          - "10. РЕКВИЗИТЫ СТОРОН"
+          - "Приложение №1"
+
+        Исключаются вложенные подразделы:
+          - "1.1. ..."
+          - "2.3.4. ..."
+        """
         if not line:
             return False
 
-        # Только главные разделы: "1. ЗАГОЛОВОК"
+        # Нумерованный заголовок верхнего уровня
         if re.match(r'^(\d+)\.\s+([А-ЯЁ][А-ЯЁ\s]+)$', line):
             return True
 
-        # Приложения: "Приложение №1"
+        # Приложения
         if re.match(r'^(Приложение\s*№\s*\d+)', line, re.IGNORECASE):
             return True
 
-        # Markdown заголовки: "# Заголовок" или "## Заголовок"
-        if re.match(r'^(#{1,2})\s+(.+)$', line):
+        # Markdown-заголовки первого уровня
+        if re.match(r'^#{1,2}\s+(.+)$', line):
             return True
 
         return False
 
     def _is_table_start(self, lines: List[str], idx: int) -> bool:
-        """Проверяет начало markdown-таблицы"""
+        """
+        Проверяет, начинается ли с текущей строки markdown-таблица.
+        """
         if idx >= len(lines) or idx + 1 >= len(lines):
             return False
 
         line1 = lines[idx].strip()
         line2 = lines[idx + 1].strip()
 
+        # Таблица должна содержать разделители столбцов
         if '|' not in line1 or '|' not in line2:
             return False
 
-        # Вторая строка должна быть разделителем (|---|---|)
+        # Вторая строка — markdown-разделитель колонок
         if re.match(r'^\|[\s\-:|]+\|$', line2):
             return True
 
         return False
 
     def _extract_table(self, lines: List[str], start_idx: int):
-        """Извлекает таблицу, возвращает (table_text, next_idx)"""
+        """
+        Извлекает markdown-таблицу целиком.
+
+        Возвращает:
+          - текст таблицы
+          - индекс строки, следующей за таблицей
+        """
         table_lines = [lines[start_idx].strip()]
         idx = start_idx + 1
 
@@ -160,13 +209,17 @@ class DocxParser:
             chunk_type: str,
             is_atomic: bool = False
     ) -> Document:
-        """Создаёт Document объект с метаданными"""
+        """
+        Формирует Document-объект с единым набором метаданных,
+        используемых на этапе retrieval.
+        """
         metadata = {
             "chunk_type": chunk_type,
             "section": self.current_section,
-            "subsection": None,  # Для совместимости с IngestionService
+            "subsection": None,
         }
 
+        # Атомарные чанки (например, таблицы) не должны дробиться дальше
         if is_atomic:
             metadata["is_atomic"] = True
 

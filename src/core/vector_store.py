@@ -132,6 +132,8 @@ class VectorStore:
                 documents=documents,
                 ids=ids,
             )
+
+            return documents
         except Exception:
             logger.exception("Ошибка добавления документов в VectorStore")
             raise

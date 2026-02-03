@@ -3,8 +3,9 @@ import logging
 from fastapi import FastAPI
 
 from src.api.lifespan import lifespan
-from src.api.routers import health_router, ingestion_router, generation_router, retrieval_router
-
+from src.api.routers.files import files_router
+from src.api.routers.health import health_router
+from src.api.routers.questions import questions_router
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +25,8 @@ def create_app() -> FastAPI:
         )
 
         app.include_router(health_router)
-        app.include_router(ingestion_router)
-        app.include_router(generation_router)
-        app.include_router(retrieval_router)
+        app.include_router(questions_router)
+        app.include_router(files_router)
 
         logger.info("FastAPI приложение успешно создано")
         return app
@@ -34,4 +34,3 @@ def create_app() -> FastAPI:
     except Exception:
         logger.exception("Ошибка при создании FastAPI приложения")
         raise
-

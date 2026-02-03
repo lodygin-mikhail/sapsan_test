@@ -71,10 +71,10 @@ class IngestionService:
                 file_hash=file_hash,
             )
 
-            await self.vector_store.aadd_documents(documents, ids)
+            added_docs = await self.vector_store.aadd_documents(documents, ids)
 
-            if self.bm25_retriever:
-                await self.bm25_retriever.aadd_documents(documents)
+            if self.bm25_retriever and added_docs:
+                await self.bm25_retriever.aadd_documents(added_docs)
 
             logger.info(
                 "Ingestion завершён: документов=%d, чанков=%d",
