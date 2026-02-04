@@ -21,24 +21,24 @@ QDRANT_URL=
 COLLECTION_NAME=
 ```
 
-* **REDIS_URL** — URL для подключения к Redis
+- **REDIS_URL** — URL для подключения к Redis
   Пример: `redis://redis:6379/0`
 
-* **BASE_LLM_URL** — базовый URL LLM-сервиса (OpenAI-совместимый API или свой endpoint)
+- **BASE_LLM_URL** — базовый URL LLM-сервиса (OpenAI-совместимый API или свой endpoint)
 
-* **API_KEY** — API-ключ для доступа к LLM
+- **API_KEY** — API-ключ для доступа к LLM
 
-* **LLM_MODEL** — модель для генерации ответов
+- **LLM_MODEL** — модель для генерации ответов
   Пример: `gpt-4o`, `llama-3`, и т.п.
 
-* **EMBEDDING_MODEL** — модель для генерации эмбеддингов
+- **EMBEDDING_MODEL** — модель для генерации эмбеддингов
 
-* **RERANKER_MODEL** — модель для rerank-этапа (если используется в пайплайне)
+- **RERANKER_MODEL** — модель для rerank-этапа (если используется в пайплайне)
 
-* **QDRANT_URL** — адрес Qdrant
+- **QDRANT_URL** — адрес Qdrant
   Для Docker Compose: `http://qdrant:6333`
 
-* **COLLECTION_NAME** — имя коллекции в Qdrant, используемой приложением
+- **COLLECTION_NAME** — имя коллекции в Qdrant, используемой приложением
 
 ## Запуск проекта
 
