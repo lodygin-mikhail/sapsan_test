@@ -6,8 +6,8 @@ from langchain_core.documents import Document
 
 from src.core.prompt import RAG_PROMPT
 
-
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class RAGOutput:

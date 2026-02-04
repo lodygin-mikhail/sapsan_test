@@ -5,7 +5,6 @@ from typing import List
 from docx import Document as DocxDocument
 from langchain_core.documents import Document
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -25,9 +24,9 @@ class DocxParser:
         # Регулярные выражения для удаления повторяющегося служебного текста
         # (артефакты экспорта, водяные знаки и т.п.)
         self.garbage_patterns = [
-            r'\*\*ОГРАЖДАЮЩАЯ АКТУАЛЯЦИЯ\*\*',
-            r'ОГРАЖДАЮЩАЯ АКТУАЛЯЦИЯ',
-            r'\*\*ОГРАЖДАЮЩАЯ АКТУ\b',
+            r"\*\*ОГРАЖДАЮЩАЯ АКТУАЛЯЦИЯ\*\*",
+            r"ОГРАЖДАЮЩАЯ АКТУАЛЯЦИЯ",
+            r"\*\*ОГРАЖДАЮЩАЯ АКТУ\b",
         ]
 
     def parse(self) -> List[Document]:
@@ -47,13 +46,13 @@ class DocxParser:
             full_text += para.text + "\n"
 
         # Нормализуем экранированные переводы строк
-        full_text = full_text.replace('\\n', '\n')
+        full_text = full_text.replace("\\n", "\n")
 
         # Удаляем повторяющийся служебный / шумовой текст
         full_text = self._remove_garbage(full_text)
 
         # Разбиваем документ на строки для построчного анализа
-        lines = full_text.split('\n')
+        lines = full_text.split("\n")
 
         # Буфер для накопления обычного текстового контента
         current_content = []
@@ -71,20 +70,15 @@ class DocxParser:
             if self._is_table_start(lines, idx):
                 # Перед таблицей сохраняем накопленный текст как отдельный чанк
                 if current_content:
-                    text = '\n'.join(current_content)
-                    documents.append(self._create_document(
-                        text=text,
-                        chunk_type="paragraph"
-                    ))
+                    text = "\n".join(current_content)
+                    documents.append(self._create_document(text=text, chunk_type="paragraph"))
                     current_content = []
 
                 # Извлекаем таблицу целиком
                 table_md, new_idx = self._extract_table(lines, idx)
-                documents.append(self._create_document(
-                    text=table_md,
-                    chunk_type="table",
-                    is_atomic=True
-                ))
+                documents.append(
+                    self._create_document(text=table_md, chunk_type="table", is_atomic=True)
+                )
                 idx = new_idx
                 continue
 
@@ -93,11 +87,8 @@ class DocxParser:
             if self._is_main_section(line):
                 # Сохраняем предыдущий текстовый блок
                 if current_content:
-                    text = '\n'.join(current_content)
-                    documents.append(self._create_document(
-                        text=text,
-                        chunk_type="paragraph"
-                    ))
+                    text = "\n".join(current_content)
+                    documents.append(self._create_document(text=text, chunk_type="paragraph"))
                     current_content = []
 
                 # Обновляем текущий раздел
@@ -109,11 +100,8 @@ class DocxParser:
 
         # Сохраняем оставшийся контент после завершения прохода
         if current_content:
-            text = '\n'.join(current_content)
-            documents.append(self._create_document(
-                text=text,
-                chunk_type="paragraph"
-            ))
+            text = "\n".join(current_content)
+            documents.append(self._create_document(text=text, chunk_type="paragraph"))
 
         return documents
 
@@ -125,10 +113,10 @@ class DocxParser:
         cleaned_text = text
 
         for pattern in self.garbage_patterns:
-            cleaned_text = re.sub(pattern, '', cleaned_text, flags=re.IGNORECASE)
+            cleaned_text = re.sub(pattern, "", cleaned_text, flags=re.IGNORECASE)
 
         # Схлопываем избыточные переводы строк
-        cleaned_text = re.sub(r'\n{3,}', '\n\n', cleaned_text)
+        cleaned_text = re.sub(r"\n{3,}", "\n\n", cleaned_text)
 
         return cleaned_text
 
@@ -149,15 +137,15 @@ class DocxParser:
             return False
 
         # Нумерованный заголовок верхнего уровня
-        if re.match(r'^(\d+)\.\s+([А-ЯЁ][А-ЯЁ\s]+)$', line):
+        if re.match(r"^(\d+)\.\s+([А-ЯЁ][А-ЯЁ\s]+)$", line):
             return True
 
         # Приложения
-        if re.match(r'^(Приложение\s*№\s*\d+)', line, re.IGNORECASE):
+        if re.match(r"^(Приложение\s*№\s*\d+)", line, re.IGNORECASE):
             return True
 
         # Markdown-заголовки первого уровня
-        if re.match(r'^#{1,2}\s+(.+)$', line):
+        if re.match(r"^#{1,2}\s+(.+)$", line):
             return True
 
         return False
@@ -173,11 +161,11 @@ class DocxParser:
         line2 = lines[idx + 1].strip()
 
         # Таблица должна содержать разделители столбцов
-        if '|' not in line1 or '|' not in line2:
+        if "|" not in line1 or "|" not in line2:
             return False
 
         # Вторая строка — markdown-разделитель колонок
-        if re.match(r'^\|[\s\-:|]+\|$', line2):
+        if re.match(r"^\|[\s\-:|]+\|$", line2):
             return True
 
         return False
@@ -195,20 +183,15 @@ class DocxParser:
 
         while idx < len(lines):
             line = lines[idx].strip()
-            if '|' in line:
+            if "|" in line:
                 table_lines.append(line)
                 idx += 1
             else:
                 break
 
-        return '\n'.join(table_lines), idx
+        return "\n".join(table_lines), idx
 
-    def _create_document(
-            self,
-            text: str,
-            chunk_type: str,
-            is_atomic: bool = False
-    ) -> Document:
+    def _create_document(self, text: str, chunk_type: str, is_atomic: bool = False) -> Document:
         """
         Формирует Document-объект с единым набором метаданных,
         используемых на этапе retrieval.
@@ -223,7 +206,4 @@ class DocxParser:
         if is_atomic:
             metadata["is_atomic"] = True
 
-        return Document(
-            page_content=text,
-            metadata=metadata
-        )
+        return Document(page_content=text, metadata=metadata)

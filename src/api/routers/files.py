@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 files_router = APIRouter(prefix="/files", tags=["Files"])
 
+
 @files_router.post("")
 async def upload_file(req: Request, file: UploadFile = File(...)):
     """

@@ -6,8 +6,8 @@ from typing import List
 from langchain_core.documents import Document
 from langchain_community.retrievers import BM25Retriever
 
-
 logger = logging.getLogger(__name__)
+
 
 class BaseRetriever(ABC):
     @abstractmethod
@@ -48,7 +48,6 @@ class VectorRetriever(BaseRetriever):
             raise
 
 
-
 class AsyncBM25Retriever(BaseRetriever):
     """
     Асинхронная обёртка над BM25Retriever.
@@ -58,9 +57,7 @@ class AsyncBM25Retriever(BaseRetriever):
         self._lock = asyncio.Lock()
         self._documents: list[Document] = documents or []
         self.retriever: BM25Retriever | None = (
-            BM25Retriever.from_documents(self._documents)
-            if self._documents
-            else None
+            BM25Retriever.from_documents(self._documents) if self._documents else None
         )
 
         logger.info(
@@ -76,10 +73,7 @@ class AsyncBM25Retriever(BaseRetriever):
         async with self._lock:
             try:
                 loop = asyncio.get_running_loop()
-                return await loop.run_in_executor(
-                    None,
-                    lambda: self.retriever.invoke(query)
-                )
+                return await loop.run_in_executor(None, lambda: self.retriever.invoke(query))
             except Exception:
                 logger.exception("Ошибка BM25 retrieval")
                 raise
@@ -95,9 +89,7 @@ class AsyncBM25Retriever(BaseRetriever):
 
                 def _update():
                     self._documents.extend(new_docs)
-                    self.retriever = BM25Retriever.from_documents(
-                        self._documents
-                    )
+                    self.retriever = BM25Retriever.from_documents(self._documents)
 
                 await loop.run_in_executor(None, _update)
 
@@ -109,7 +101,6 @@ class AsyncBM25Retriever(BaseRetriever):
             except Exception:
                 logger.exception("Ошибка обновления BM25 индекса")
                 raise
-
 
 
 class HybridRetriever(BaseRetriever):
@@ -147,11 +138,7 @@ class HybridRetriever(BaseRetriever):
             vec_docs = await self.vector_retriever.aretrieve(query)
             logger.debug("VectorRetriever вернул документов: %d", len(vec_docs))
 
-            bm25_docs = (
-                await self.bm25_retriever.aretrieve(query)
-                if self.bm25_retriever
-                else []
-            )
+            bm25_docs = await self.bm25_retriever.aretrieve(query) if self.bm25_retriever else []
 
             logger.debug("BM25Retriever вернул документов: %d", len(bm25_docs))
 
@@ -161,7 +148,7 @@ class HybridRetriever(BaseRetriever):
                 docs_map[key] = doc
 
             merged_docs = list(docs_map.values())
-            candidates = merged_docs[:self.pre_rerank_k]
+            candidates = merged_docs[: self.pre_rerank_k]
 
             logger.debug(
                 "Кандидатов перед rerank: %d",
@@ -175,7 +162,7 @@ class HybridRetriever(BaseRetriever):
                 min(len(ranked_docs), self.top_k),
             )
 
-            return ranked_docs[:self.top_k]
+            return ranked_docs[: self.top_k]
 
         except Exception:
             logger.exception("Ошибка HybridRetriever")

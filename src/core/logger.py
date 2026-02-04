@@ -112,9 +112,7 @@ class AsyncLogWriter:
         """Запускает поток обработки логов."""
         if not self.running:
             self.running = True
-            self.worker_thread = threading.Thread(
-                target=self._process_logs, daemon=True
-            )
+            self.worker_thread = threading.Thread(target=self._process_logs, daemon=True)
             self.worker_thread.start()
 
     def stop(self):
@@ -150,9 +148,7 @@ class AsyncLogWriter:
             self.queue.put(log_item, block=True, timeout=0.1)
         except queue.Full:
             # Если очередь переполнена, пишем в stderr
-            sys.stderr.write(
-                f"Очередь логов переполнена, сообщение потеряно: {record}\n"
-            )
+            sys.stderr.write(f"Очередь логов переполнена, сообщение потеряно: {record}\n")
             sys.stderr.flush()
         except Exception as e:
             sys.stderr.write(f"Ошибка при добавлении в очередь логов: {e}\n")
@@ -164,18 +160,14 @@ class AsyncLogWriter:
             # Создаем директорию при необходимости
             os.makedirs(os.path.dirname(filename), exist_ok=True)
             # Открываем файл в режиме добавления с буферизацией
-            self.files[filename] = open(
-                filename, mode="a", encoding="utf-8", buffering=8192
-            )
+            self.files[filename] = open(filename, mode="a", encoding="utf-8", buffering=8192)
         return self.files[filename]
 
     def _get_formatter(self, level):
         """Получает форматтер для нужного уровня логгирования."""
         if level not in self.formatters:
             format_str = LOGGING_CONFIG["formatters"]["standard"]["format"]
-            date_fmt = LOGGING_CONFIG["formatters"]["standard"].get(
-                "datefmt", "%Y-%m-%d %H:%M:%S"
-            )
+            date_fmt = LOGGING_CONFIG["formatters"]["standard"].get("datefmt", "%Y-%m-%d %H:%M:%S")
             self.formatters[level] = logging.Formatter(format_str, date_fmt)
         return self.formatters[level]
 
@@ -191,9 +183,7 @@ class AsyncLogWriter:
                 except queue.Empty:
                     # Если очередь пуста, делаем flush всех файлов если прошло достаточно времени
                     current_time = time.time()
-                    if (
-                        current_time - last_flush_time > 2.0
-                    ):  # Каждые 2 секунды делаем flush
+                    if current_time - last_flush_time > 2.0:  # Каждые 2 секунды делаем flush
                         for file_obj in self.files.values():
                             file_obj.flush()
                         last_flush_time = current_time
@@ -278,17 +268,11 @@ def get_async_handlers(logger_name):
     warning_file = str(log_dir / "warnings.log")
 
     # Создаем асинхронные обработчики с ежедневной ротацией
-    file_handler = AsyncHandler(
-        filename=log_file, level=logging.INFO, daily_rotate=True
-    )
-    warning_handler = AsyncHandler(
-        filename=warning_file, level=logging.WARNING, daily_rotate=True
-    )
+    file_handler = AsyncHandler(filename=log_file, level=logging.INFO, daily_rotate=True)
+    warning_handler = AsyncHandler(filename=warning_file, level=logging.WARNING, daily_rotate=True)
 
     debug_file = str(log_dir / "debug.log")
-    debug_handler = AsyncHandler(
-        filename=debug_file, level=logging.DEBUG, daily_rotate=True
-    )
+    debug_handler = AsyncHandler(filename=debug_file, level=logging.DEBUG, daily_rotate=True)
 
     return file_handler, warning_handler, debug_handler
 
@@ -352,12 +336,8 @@ def setup_logger() -> logging.Logger:
 
     # Заменяем стандартные обработчики на асинхронные
     logger = logging.getLogger(logger_name)
-    for handler in logger.handlers[
-        :
-    ]:  # Копируем список, чтобы безопасно модифицировать
-        if isinstance(handler, logging.FileHandler) and not hasattr(
-            handler, "async_handler_flag"
-        ):
+    for handler in logger.handlers[:]:  # Копируем список, чтобы безопасно модифицировать
+        if isinstance(handler, logging.FileHandler) and not hasattr(handler, "async_handler_flag"):
             logger.removeHandler(handler)
             if handler.level == logging.WARNING:
                 logger.addHandler(warning_handler)

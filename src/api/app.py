@@ -9,6 +9,7 @@ from src.api.routers.questions import questions_router
 
 logger = logging.getLogger(__name__)
 
+
 def create_app() -> FastAPI:
     """
     Фабрика FastAPI-приложения.

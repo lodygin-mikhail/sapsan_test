@@ -6,13 +6,14 @@ from qdrant_client import AsyncQdrantClient, models
 
 from src.core.config import settings
 
-
 logger = logging.getLogger(__name__)
+
 
 class VectorStore:
     """
     Обёртка над Qdrant для асинхронной работы.
     """
+
     def __init__(self, embeddings):
         """
         Инициализирует клиент Qdrant и сохраняет объект эмбеддингов.
@@ -20,9 +21,7 @@ class VectorStore:
         logger.info("Инициализация VectorStore")
 
         try:
-            self.client = AsyncQdrantClient(
-                url=settings.QDRANT_URL
-            )
+            self.client = AsyncQdrantClient(url=settings.QDRANT_URL)
             self.embeddings = embeddings
             self.store = None
 
@@ -45,9 +44,7 @@ class VectorStore:
         )
 
         try:
-            exists = await self.client.collection_exists(
-                settings.COLLECTION_NAME
-            )
+            exists = await self.client.collection_exists(settings.COLLECTION_NAME)
 
             if exists:
                 logger.info(
@@ -109,7 +106,7 @@ class VectorStore:
                 search_kwargs={
                     "k": k,
                     "fetch_k": fetch_k,
-                }
+                },
             )
             return await retriever.ainvoke(query)
 
@@ -163,11 +160,7 @@ class VectorStore:
                     payload = point.payload or {}
 
                     doc = Document(
-                        page_content=(
-                                payload.get("page_content")
-                                or payload.get("text")
-                                or ""
-                        ),
+                        page_content=(payload.get("page_content") or payload.get("text") or ""),
                         metadata=payload,
                     )
                     all_docs.append(doc)

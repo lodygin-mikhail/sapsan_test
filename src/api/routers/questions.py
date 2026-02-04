@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 questions_router = APIRouter(prefix="/questions", tags=["Questions"])
 
+
 @questions_router.post("")
 async def ask_question(body: AskQuestionSchema, req: Request):
     """
@@ -55,6 +56,7 @@ async def ask_question(body: AskQuestionSchema, req: Request):
         "question_id": question_id,
         "status": "processing",
     }
+
 
 @questions_router.get("/{question_id}", response_model=QuestionStatusResponse)
 async def get_question_status(question_id: str, req: Request):

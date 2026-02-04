@@ -4,8 +4,8 @@ from langchain_openai import OpenAIEmbeddings
 
 from src.core.config import settings
 
-
 logger = logging.getLogger(__name__)
+
 
 class Embedder:
     """Обёртка над OpenAI Embeddings."""

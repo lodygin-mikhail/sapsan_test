@@ -14,7 +14,6 @@ from src.core.reranker import Reranker
 from src.core.retriever import VectorRetriever, AsyncBM25Retriever, HybridRetriever
 from src.core.vector_store import VectorStore
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -59,11 +58,7 @@ async def lifespan(app):
         # ---------- Retrievers ----------
         vector_retriever = VectorRetriever(vector_store=vector_store)
 
-        bm25 = (
-            AsyncBM25Retriever(documents=all_docs)
-            if all_docs
-            else None
-        )
+        bm25 = AsyncBM25Retriever(documents=all_docs) if all_docs else None
 
         hybrid_retriever = HybridRetriever(
             vector_retriever=vector_retriever,

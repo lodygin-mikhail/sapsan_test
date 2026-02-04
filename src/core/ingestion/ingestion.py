@@ -11,13 +11,14 @@ from src.core.ingestion.docx_parser import DocxParser
 from src.core.retriever import AsyncBM25Retriever
 from src.core.vector_store import VectorStore
 
-
 logger = logging.getLogger(__name__)
+
 
 class IngestionService:
     """
     Сервис ingestion документов в RAG систему.
     """
+
     def __init__(
         self,
         vector_store: VectorStore,

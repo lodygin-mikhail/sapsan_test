@@ -8,6 +8,7 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 logger = logging.getLogger(__name__)
 
+
 class Reranker:
     def __init__(self, model_name: str):
         self.model_name = model_name
